@@ -5,31 +5,38 @@ import Graphics.Element exposing (..)
 import Mouse
 import Color exposing (rgb)
 import Window
-import Maybe exposing (withDefault)
 
 
 type alias World =
   List Line
 
 
-type alias Line =
-  ( Position, Vector )
+type Line
+  = Line ( Position, Vector )
 
 
-type alias Position =
-  ( Length, Length )
+type X
+  = X Float
 
 
-type alias Vector =
-  ( Angle, Length )
+type Y
+  = Y Float
 
 
-type alias Length =
-  Float
+type Position
+  = Position ( X, Y )
 
 
-type alias Angle =
-  Float
+type Vector
+  = Vector ( Length, Angle )
+
+
+type Length
+  = Length Float
+
+
+type Angle
+  = Angle Float
 
 
 view : ( Int, Int ) -> ( Int, Int ) -> Element
@@ -38,15 +45,15 @@ view ( w', h' ) ( x', y' ) =
     ( w, h ) =
       ( toFloat w', toFloat h' )
 
-    ( x, y ) =
+    ( rayX, rayY ) =
       ( toFloat x' - (w / 2), (h / 2) - toFloat y' )
   in
     collage
       w'
       h'
-      [ group (List.map (drawLine defaultLine) world)
-      , circle 5 |> filled (rgb 220 0 0) |> move ( x, y )
-      , group (List.map (drawLine rayLineStyle) (solveRays ( x, y )))
+      [ circle 5 |> filled (rgb 220 0 0) |> move ( rayX, rayY )
+      , group (List.map (drawLine defaultLine) world)
+      , group (List.map (drawLine rayLineStyle) (solveRays (Position ( X rayX, Y rayY ))))
       ]
 
 
@@ -65,71 +72,98 @@ rayLineStyle =
   }
 
 
-drawLine : LineStyle -> Line -> Form
-drawLine lineStyle ( ( x, y ), ( angle, t ) ) =
-  let
-    ( x', y' ) =
-      fromPolar ( t, degrees angle )
+start : Line -> Position
+start (Line ( position, _ )) =
+  position
 
-    end =
-      ( x + x', y + y' )
+
+end : Line -> Position
+end (Line ( Position ( X x, Y y ), Vector ( Length length, Angle angle ) )) =
+  let
+    ( dx, dy ) =
+      fromPolar ( length, angle )
   in
-    path [ ( x, y ), end ] |> traced lineStyle
+    Position ( X (x + dx), Y (y + dy) )
+
+
+toXY : Position -> ( Float, Float )
+toXY (Position ( X x, Y y )) =
+  ( x, y )
+
+
+drawLine : LineStyle -> Line -> Form
+drawLine lineStyle line =
+  let
+    lineStart =
+      toXY (start line)
+
+    lineEnd =
+      toXY (end line)
+  in
+    group
+      [ segment lineStart lineEnd
+          |> traced lineStyle
+      , circle 5
+          |> filled (rgb 220 0 0)
+          |> move lineStart
+      , circle 5
+          |> filled (rgb 220 0 0)
+          |> move lineEnd
+      ]
 
 
 solveRays : Position -> List Line
-solveRays start =
+solveRays rayStart =
+  List.concatMap (toRays rayStart) world
+
+
+toRays : Position -> Line -> List Line
+toRays position line =
+  [ start line
+  , end line
+  ]
+    |> List.map (toLine position)
+
+
+toLine : Position -> Position -> Line
+toLine from to =
+  Line
+    ( from
+    , vectorToPoint from to
+    )
+
+
+vectorToPoint : Position -> Position -> Vector
+vectorToPoint (Position ( X x1, Y y1 )) (Position ( X x2, Y y2 )) =
   let
-    angles =
-      List.map ((*) 10) [1..37]
+    dx =
+      x2 - x1
+
+    dy =
+      y2 - y1
   in
-    List.map (\a -> ( start, ( a, solveRay start a ) )) angles
-
-
-solveRay : Position -> Angle -> Length
-solveRay start angle =
-  let
-    lengths =
-      List.filterMap (distanceToLine start angle) world
-  in
-    List.minimum lengths |> withDefault 0
-
-
-distanceToLine : Position -> Angle -> Line -> Maybe Length
-distanceToLine ( rx, ry ) ra ( ( sx, sy ), ( sa, sm ) ) =
-  let
-    ( ax, ay ) =
-      ( cos (degrees sa), sin (degrees sa) )
-
-    ( bx, by ) =
-      ( cos (degrees ra), sin (degrees ra) )
-
-    d =
-      bx * ay - by * ax
-
-    t1 =
-      (ay * sx - ay * rx - ax * sy + ax * ry) / d
-
-    t2 =
-      -(-by * sx + by * rx + bx * sy - bx * ry) / d
-  in
-    if t2 < 0 || t2 > sm || t1 < 0 then
-      Nothing
-    else
-      Just t2
+    Vector
+      ( Length (sqrt (dx * dx + dy * dy))
+      , Angle (atan2 (y2 - y1) (x2 - x1))
+      )
 
 
 world : World
 world =
-  [ ( ( -300, -300 ), ( 0, 600 ) )
-  , ( ( 300, -300 ), ( 90, 600 ) )
-  , ( ( -300, -300 ), ( 90, 600 ) )
-  , ( ( 300, 300 ), ( 180, 600 ) )
-  , ( ( 100, 100 ), ( -45, 50 ) )
-  , ( ( 150, -100 ), ( 20, 120 ) )
+  [ Line ( Position ( X -300, Y -300 ), Vector ( Length 600, Angle <| degrees 0 ) )
+  , Line ( Position ( X 300, Y -300 ), Vector ( Length 600, Angle <| degrees 90 ) )
+  , Line ( Position ( X -300, Y -300 ), Vector ( Length 600, Angle <| degrees 90 ) )
+  , Line ( Position ( X 300, Y 300 ), Vector ( Length 600, Angle <| degrees 180 ) )
+  , Line ( Position ( X 100, Y 100 ), Vector ( Length 50, Angle <| degrees -45 ) )
+  , Line ( Position ( X -120, Y 100 ), Vector ( Length 50, Angle <| degrees -110 ) )
+  , Line ( Position ( X -200, Y 180 ), Vector ( Length 150, Angle <| degrees -110 ) )
+  , Line ( Position ( X 150, Y -100 ), Vector ( Length 120, Angle <| degrees -125 ) )
   ]
 
 
 main : Signal Element
 main =
-  Signal.map2 view Window.dimensions Mouse.position
+  Signal.map2
+    view
+    Window.dimensions
+    Mouse.position
