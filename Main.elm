@@ -86,6 +86,11 @@ end (Line ( Position ( X x, Y y ), Vector ( Length length, Angle angle ) )) =
     Position ( X (x + dx), Y (y + dy) )
 
 
+magnitude : Line -> Float
+magnitude (Line ( _, Vector ( Length length, _ ) )) =
+  length
+
+
 toXY : Position -> ( Float, Float )
 toXY (Position ( X x, Y y )) =
   ( x, y )
@@ -114,7 +119,69 @@ drawLine lineStyle line =
 
 solveRays : Position -> List Line
 solveRays rayStart =
-  List.concatMap (toRays rayStart) world
+  world
+    |> List.concatMap (toRays rayStart)
+    |> List.filterMap curtail
+
+
+curtail : Line -> Maybe Line
+curtail line =
+  List.filterMap (intersect line) world
+    |> List.sortBy magnitude
+    |> List.head
+
+
+intersect : Line -> Line -> Maybe Line
+intersect r s =
+  -- TODO This should now collision detect, returning a foreshortened a.
+  let
+    ( r_px, r_py ) =
+      toXY (start r)
+
+    ( s_px, s_py ) =
+      toXY (start s)
+
+    pos (Line ( p, _ )) =
+      p
+
+    angle (Line ( _, Vector ( _, Angle a ) )) =
+      a
+
+    ra =
+      angle r
+
+    norms l =
+      let
+        a =
+          angle l
+      in
+        ( cos a, sin a )
+
+    ( r_dx, r_dy ) =
+      norms r
+
+    ( s_dx, s_dy ) =
+      norms s
+
+    sm =
+      ((r_px * r_dy) - (r_py * r_dx) + (s_py * r_dx) - (s_px * r_dy))
+        / ((s_dx * r_dy) - (s_dy * r_dx))
+
+    rm =
+      ((s_px - r_px + (s_dx * sm)) / r_dx)
+
+    clamp length (Line ( p, Vector ( Length l2, a ) )) =
+      if length + 2 < 0 || l2 < length - 2 then
+        Nothing
+      else
+        Just (Line ( p, Vector ( Length length, a ) ))
+  in
+    if isNaN sm || isNaN rm then
+      Nothing
+    else if clamp (floor sm) s == Nothing then
+      Nothing
+    else
+      clamp (floor rm) r
 
 
 toRays : Position -> Line -> List Line
@@ -154,10 +221,10 @@ world =
   , Line ( Position ( X 300, Y -300 ), Vector ( Length 600, Angle <| degrees 90 ) )
   , Line ( Position ( X -300, Y -300 ), Vector ( Length 600, Angle <| degrees 90 ) )
   , Line ( Position ( X 300, Y 300 ), Vector ( Length 600, Angle <| degrees 180 ) )
-  , Line ( Position ( X 100, Y 100 ), Vector ( Length 50, Angle <| degrees -45 ) )
-  , Line ( Position ( X -120, Y 100 ), Vector ( Length 50, Angle <| degrees -110 ) )
-  , Line ( Position ( X -200, Y 180 ), Vector ( Length 150, Angle <| degrees -110 ) )
-  , Line ( Position ( X 150, Y -100 ), Vector ( Length 120, Angle <| degrees -125 ) )
+  , Line ( Position ( X 100, Y 100 ), Vector ( Length 50, Angle <| degrees 315 ) )
+  , Line ( Position ( X -120, Y 100 ), Vector ( Length 50, Angle <| degrees 250 ) )
+  , Line ( Position ( X -200, Y 180 ), Vector ( Length 150, Angle <| degrees 250 ) )
+  , Line ( Position ( X 150, Y -100 ), Vector ( Length 120, Angle <| degrees 235 ) )
   ]
 
 
