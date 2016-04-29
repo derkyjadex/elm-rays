@@ -4,7 +4,7 @@ import Color exposing (Color)
 import Graphics.Collage exposing (..)
 import Graphics.Element exposing (..)
 import Mouse
-import Text
+import Text exposing (fromString)
 import Window
 
 
@@ -185,13 +185,7 @@ view ( w', h' ) ( x', y' ) =
     collage
       w'
       h'
-      [ text
-          (Text.link
-            "http://ncase.me/sight-and-light/"
-            (Text.fromString "Based on this excellent tutorial.")
-          )
-          |> move ( 0, (toFloat h' / 2) - 20 )
-      , group
+      [ group
           (let
             solutions =
               solveRays rayPosition
@@ -204,6 +198,13 @@ view ( w', h' ) ( x', y' ) =
               |> List.map (drawTriangles rayColor)
           )
       , group (List.map (drawLine wallLineStyle) world)
+      , [ fromString "A raycasting hack in Elm, based on "
+        , Text.link "http://ncase.me/sight-and-light" (fromString "this excellent tutorial")
+        , fromString "."
+        ]
+          |> Text.concat
+          |> text
+          |> move ( 0, (toFloat h' / 2) - 20 )
       ]
 
 
