@@ -2,6 +2,7 @@ module Main (..) where
 
 import Graphics.Collage exposing (..)
 import Graphics.Element exposing (..)
+import Text
 import Mouse
 import Color exposing (rgb)
 import Window
@@ -43,9 +44,16 @@ view ( w', h' ) ( x', y' ) =
     collage
       w'
       h'
-      [ circle 5 |> filled (rgb 220 0 0) |> move (toXY rayPosition)
+      [ text
+          (Text.link
+            "http://ncase.me/sight-and-light/"
+            (Text.fromString "Based on this excellent tutorial.")
+          )
+          |> move ( 0, (toFloat h' / 2) - 20 )
+      , circle 5 |> filled (rgb 220 0 0) |> move (toXY rayPosition)
       , group (List.map (drawLine defaultLine) world)
-      , group (List.map (drawLine rayLineStyle) (solveRays rayPosition))
+      , group
+          (List.map (drawLine rayLineStyle) (solveRays rayPosition))
       ]
 
 
@@ -219,6 +227,8 @@ world =
   , { position = { x = -120, y = 100 }, vector = { length = 50, angle = degrees 250 } }
   , { position = { x = -200, y = 180 }, vector = { length = 150, angle = degrees 250 } }
   , { position = { x = 150, y = -100 }, vector = { length = 120, angle = degrees 235 } }
+  , { position = { x = -100, y = -200 }, vector = { length = 400, angle = degrees 90 } }
+  , { position = { x = 0, y = -150 }, vector = { length = 300, angle = degrees 90 } }
   ]
 
 
