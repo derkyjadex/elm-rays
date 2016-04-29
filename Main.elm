@@ -112,6 +112,13 @@ curtail line =
     |> List.head
 
 
+norms : Line -> ( Float, Float )
+norms line =
+  ( cos line.vector.angle
+  , sin line.vector.angle
+  )
+
+
 intersect : Line -> Line -> Maybe Line
 intersect r s =
   let
@@ -120,11 +127,6 @@ intersect r s =
 
     ( s_px, s_py ) =
       toXY (start s)
-
-    norms line =
-      ( cos line.vector.angle
-      , sin line.vector.angle
-      )
 
     ( r_dx, r_dy ) =
       norms r
