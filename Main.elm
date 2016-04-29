@@ -1,5 +1,7 @@
 module Main (..) where
 
+{- Oh fudge, you're looking at the source code. -}
+
 import Color exposing (Color)
 import Graphics.Collage exposing (..)
 import Graphics.Element exposing (..)
