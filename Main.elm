@@ -197,6 +197,9 @@ view ( w', h' ) ( x', y' ) =
             List.map2 (,) cycled (List.tail cycled |> Maybe.withDefault [])
               |> List.map (drawTriangles rayColor)
           )
+      , circle 5
+          |> filled Color.red
+          |> move (toXY rayPosition)
       , group (List.map (drawLine wallLineStyle) world)
       , [ fromString "A raycasting hack in Elm, based on "
         , Text.link "http://ncase.me/sight-and-light" (fromString "this excellent tutorial")
