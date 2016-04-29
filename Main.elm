@@ -4,9 +4,9 @@ module Main (..) where
 
 import Color exposing (Color)
 import Graphics.Collage exposing (..)
-import Graphics.Element exposing (..)
+import Graphics.Element exposing (Element, flow, down, container, centered, middle)
 import Mouse
-import Text exposing (fromString)
+import Text exposing (link, fromString)
 import Window
 
 
@@ -188,14 +188,18 @@ view ( w', h' ) ( x', y' ) =
   in
     flow
       down
-      [ [ fromString "A raycasting hack in Elm, based on "
-        , Text.link "http://ncase.me/sight-and-light" (fromString "this excellent tutorial")
+      [ [ fromString "A raycasting hack in "
+        , link "http://elm-lang.org/" (fromString "Elm")
+        , fromString ", based on "
+        , link "http://ncase.me/sight-and-light" (fromString "this excellent tutorial")
         , fromString "."
         ]
           |> Text.concat
           |> centered
-      , Text.link "https://github.com/krisajenkins/elm-rays" (fromString "Source Code")
+          |> container w' 30 middle
+      , link "https://github.com/krisajenkins/elm-rays" (fromString "Source Code")
           |> centered
+          |> container w' 30 middle
       , collage
           w'
           h'
