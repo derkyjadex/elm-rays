@@ -186,32 +186,36 @@ view ( w', h' ) ( x', y' ) =
       , y = (h / 2) - toFloat y'
       }
   in
-    collage
-      w'
-      h'
-      [ group
-          (let
-            solutions =
-              solveRays rayPosition
-                |> List.sortBy (.vector >> .angle)
-
-            cycled =
-              solutions ++ (List.take 1 solutions)
-           in
-            List.map2 (,) cycled (List.tail cycled |> Maybe.withDefault [])
-              |> List.map (drawTriangles rayColor)
-          )
-      , circle 5
-          |> filled Color.red
-          |> move (toXY rayPosition)
-      , group (List.map (drawLine wallLineStyle) world)
-      , [ fromString "A raycasting hack in Elm, based on "
+    flow
+      down
+      [ [ fromString "A raycasting hack in Elm, based on "
         , Text.link "http://ncase.me/sight-and-light" (fromString "this excellent tutorial")
         , fromString "."
         ]
           |> Text.concat
-          |> text
-          |> move ( 0, (toFloat h' / 2) - 20 )
+          |> centered
+      , Text.link "https://github.com/krisajenkins/elm-rays" (fromString "Source Code")
+          |> centered
+      , collage
+          w'
+          h'
+          [ group
+              (let
+                solutions =
+                  solveRays rayPosition
+                    |> List.sortBy (.vector >> .angle)
+
+                cycled =
+                  solutions ++ (List.take 1 solutions)
+               in
+                List.map2 (,) cycled (List.tail cycled |> Maybe.withDefault [])
+                  |> List.map (drawTriangles rayColor)
+              )
+          , circle 5
+              |> filled Color.red
+              |> move (toXY rayPosition)
+          , group (List.map (drawLine wallLineStyle) world)
+          ]
       ]
 
 
