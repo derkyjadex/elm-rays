@@ -188,19 +188,7 @@ view ( w', h' ) ( x', y' ) =
   in
     flow
       down
-      [ [ fromString "A raycasting hack in "
-        , link "http://elm-lang.org/" (fromString "Elm")
-        , fromString ", based on "
-        , link "http://ncase.me/sight-and-light" (fromString "this excellent tutorial")
-        , fromString "."
-        ]
-          |> Text.concat
-          |> centered
-          |> container w' 30 middle
-      , link "https://github.com/krisajenkins/elm-rays" (fromString "Source Code")
-          |> centered
-          |> container w' 30 middle
-      , collage
+      [ collage
           w'
           h'
           [ group
@@ -220,6 +208,18 @@ view ( w', h' ) ( x', y' ) =
               |> move (toXY rayPosition)
           , group (List.map (drawLine wallLineStyle) world)
           ]
+      , [ fromString "A raycasting hack in "
+        , link "http://elm-lang.org/" (fromString "Elm")
+        , fromString ", based on "
+        , link "http://ncase.me/sight-and-light" (fromString "this excellent tutorial")
+        , fromString "."
+        ]
+          |> Text.concat
+          |> centered
+          |> container w' 30 middle
+      , link "https://github.com/krisajenkins/elm-rays" (fromString "Source Code")
+          |> centered
+          |> container w' 30 middle
       ]
 
 
