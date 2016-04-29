@@ -1,11 +1,16 @@
 module Main (..) where
 
+import Color exposing (Color)
 import Graphics.Collage exposing (..)
 import Graphics.Element exposing (..)
-import Text
 import Mouse
-import Color exposing (rgb)
+import Text
 import Window
+
+
+------------------------------------------------------------
+-- Types
+------------------------------------------------------------
 
 
 type alias World =
@@ -30,48 +35,6 @@ type alias Vector =
   }
 
 
-view : ( Int, Int ) -> ( Int, Int ) -> Element
-view ( w', h' ) ( x', y' ) =
-  let
-    ( w, h ) =
-      ( toFloat w', toFloat h' )
-
-    rayPosition =
-      { x = toFloat x' - (w / 2)
-      , y = (h / 2) - toFloat y'
-      }
-  in
-    collage
-      w'
-      h'
-      [ text
-          (Text.link
-            "http://ncase.me/sight-and-light/"
-            (Text.fromString "Based on this excellent tutorial.")
-          )
-          |> move ( 0, (toFloat h' / 2) - 20 )
-      , circle 5 |> filled (rgb 220 0 0) |> move (toXY rayPosition)
-      , group (List.map (drawLine defaultLine) world)
-      , group
-          (List.map (drawLine rayLineStyle) (solveRays rayPosition))
-      ]
-
-
-wallLineStyle : LineStyle
-wallLineStyle =
-  { defaultLine
-    | width = 4
-  }
-
-
-rayLineStyle : LineStyle
-rayLineStyle =
-  { defaultLine
-    | width = 2
-    , color = rgb 220 0 0
-  }
-
-
 start : Line -> Position
 start line =
   line.position
@@ -93,19 +56,43 @@ toXY p =
   ( p.x, p.y )
 
 
-drawLine : LineStyle -> Line -> Form
-drawLine lineStyle line =
+withLength : Float -> Line -> Line
+withLength length line =
   let
-    lineStart =
-      toXY (start line)
-
-    lineEnd =
-      toXY (end line)
+    vector =
+      line.vector
   in
-    group
-      [ segment lineStart lineEnd
-          |> traced lineStyle
-      ]
+    { line | vector = { vector | length = length } }
+
+
+adjustAngle : Float -> Line -> Line
+adjustAngle delta line =
+  let
+    vector =
+      line.vector
+  in
+    { line | vector = { vector | angle = vector.angle + delta } }
+
+
+lineBetween : Position -> Position -> Line
+lineBetween from to =
+  { position = from
+  , vector = vectorBetween from to
+  }
+
+
+vectorBetween : Position -> Position -> Vector
+vectorBetween p1 p2 =
+  let
+    dx =
+      p2.x - p1.x
+
+    dy =
+      p2.y - p1.y
+  in
+    { length = sqrt (dx * dx + dy * dy)
+    , angle = atan2 (p2.y - p1.y) (p2.x - p1.x)
+    }
 
 
 solveRays : Position -> List Line
@@ -162,24 +149,6 @@ intersect r s =
       Just (withLength rm r)
 
 
-withLength : Float -> Line -> Line
-withLength length line =
-  let
-    vector =
-      line.vector
-  in
-    { line | vector = { vector | length = length } }
-
-
-adjustAngle : Float -> Line -> Line
-adjustAngle delta line =
-  let
-    vector =
-      line.vector
-  in
-    { line | vector = { vector | angle = vector.angle + delta } }
-
-
 toRays : Position -> Line -> List Line
 toRays position line =
   let
@@ -196,25 +165,77 @@ toRays position line =
     ]
 
 
-lineBetween : Position -> Position -> Line
-lineBetween from to =
-  { position = from
-  , vector = vectorBetween from to
-  }
+
+------------------------------------------------------------
+-- View
+------------------------------------------------------------
 
 
-vectorBetween : Position -> Position -> Vector
-vectorBetween p1 p2 =
+view : ( Int, Int ) -> ( Int, Int ) -> Element
+view ( w', h' ) ( x', y' ) =
   let
-    dx =
-      p2.x - p1.x
+    ( w, h ) =
+      ( toFloat w', toFloat h' )
 
-    dy =
-      p2.y - p1.y
+    rayPosition =
+      { x = toFloat x' - (w / 2)
+      , y = (h / 2) - toFloat y'
+      }
   in
-    { length = sqrt (dx * dx + dy * dy)
-    , angle = atan2 (p2.y - p1.y) (p2.x - p1.x)
-    }
+    collage
+      w'
+      h'
+      [ text
+          (Text.link
+            "http://ncase.me/sight-and-light/"
+            (Text.fromString "Based on this excellent tutorial.")
+          )
+          |> move ( 0, (toFloat h' / 2) - 20 )
+      , group
+          (let
+            solutions =
+              solveRays rayPosition
+                |> List.sortBy (.vector >> .angle)
+
+            cycled =
+              solutions ++ (List.take 1 solutions)
+           in
+            List.map2 (,) cycled (List.tail cycled |> Maybe.withDefault [])
+              |> List.map (drawTriangles rayColor)
+          )
+      , group (List.map (drawLine wallLineStyle) world)
+      ]
+
+
+drawLine : LineStyle -> Line -> Form
+drawLine lineStyle line =
+  let
+    lineStart =
+      toXY (start line)
+
+    lineEnd =
+      toXY (end line)
+  in
+    segment lineStart lineEnd
+      |> traced lineStyle
+
+
+drawTriangles : Color -> ( Line, Line ) -> Form
+drawTriangles color ( a, b ) =
+  [ start a
+  , end a
+  , end b
+  , start b
+  ]
+    |> List.map toXY
+    |> polygon
+    |> filled color
+
+
+
+------------------------------------------------------------
+-- State
+------------------------------------------------------------
 
 
 world : World
@@ -224,12 +245,25 @@ world =
   , { position = { x = -300, y = -300 }, vector = { length = 600, angle = degrees 90 } }
   , { position = { x = 300, y = 300 }, vector = { length = 600, angle = degrees 180 } }
   , { position = { x = 100, y = 100 }, vector = { length = 50, angle = degrees 315 } }
-  , { position = { x = -120, y = 100 }, vector = { length = 50, angle = degrees 250 } }
+  , { position = { x = -80, y = 100 }, vector = { length = 50, angle = degrees 290 } }
   , { position = { x = -200, y = 180 }, vector = { length = 150, angle = degrees 250 } }
   , { position = { x = 150, y = -100 }, vector = { length = 120, angle = degrees 235 } }
-  , { position = { x = -100, y = -200 }, vector = { length = 400, angle = degrees 90 } }
-  , { position = { x = 0, y = -150 }, vector = { length = 300, angle = degrees 90 } }
+  , { position = { x = -230, y = -250 }, vector = { length = 300, angle = degrees 70 } }
+  , { position = { x = 0, y = -150 }, vector = { length = 300, angle = degrees 30 } }
   ]
+
+
+rayColor : Color
+rayColor =
+  Color.lightYellow
+
+
+wallLineStyle : LineStyle
+wallLineStyle =
+  { defaultLine
+    | width = 8
+    , cap = Round
+  }
 
 
 main : Signal Element
