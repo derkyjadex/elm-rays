@@ -11,32 +11,22 @@ type alias World =
   List Line
 
 
-type Line
-  = Line ( Position, Vector )
+type alias Line =
+  { position : Position
+  , vector : Vector
+  }
 
 
-type X
-  = X Float
+type alias Position =
+  { x : Float
+  , y : Float
+  }
 
 
-type Y
-  = Y Float
-
-
-type Position
-  = Position ( X, Y )
-
-
-type Vector
-  = Vector ( Length, Angle )
-
-
-type Length
-  = Length Float
-
-
-type Angle
-  = Angle Float
+type alias Vector =
+  { length : Float
+  , angle : Float
+  }
 
 
 view : ( Int, Int ) -> ( Int, Int ) -> Element
@@ -45,15 +35,17 @@ view ( w', h' ) ( x', y' ) =
     ( w, h ) =
       ( toFloat w', toFloat h' )
 
-    ( rayX, rayY ) =
-      ( toFloat x' - (w / 2), (h / 2) - toFloat y' )
+    rayPosition =
+      { x = toFloat x' - (w / 2)
+      , y = (h / 2) - toFloat y'
+      }
   in
     collage
       w'
       h'
-      [ circle 5 |> filled (rgb 220 0 0) |> move ( rayX, rayY )
+      [ circle 5 |> filled (rgb 220 0 0) |> move (toXY rayPosition)
       , group (List.map (drawLine defaultLine) world)
-      , group (List.map (drawLine rayLineStyle) (solveRays (Position ( X rayX, Y rayY ))))
+      , group (List.map (drawLine rayLineStyle) (solveRays rayPosition))
       ]
 
 
@@ -73,27 +65,24 @@ rayLineStyle =
 
 
 start : Line -> Position
-start (Line ( position, _ )) =
-  position
+start line =
+  line.position
 
 
 end : Line -> Position
-end (Line ( Position ( X x, Y y ), Vector ( Length length, Angle angle ) )) =
+end line =
   let
     ( dx, dy ) =
-      fromPolar ( length, angle )
+      fromPolar ( line.vector.length, line.vector.angle )
   in
-    Position ( X (x + dx), Y (y + dy) )
-
-
-magnitude : Line -> Float
-magnitude (Line ( _, Vector ( Length length, _ ) )) =
-  length
+    { x = (line.position.x + dx)
+    , y = (line.position.y + dy)
+    }
 
 
 toXY : Position -> ( Float, Float )
-toXY (Position ( X x, Y y )) =
-  ( x, y )
+toXY p =
+  ( p.x, p.y )
 
 
 drawLine : LineStyle -> Line -> Form
@@ -108,12 +97,6 @@ drawLine lineStyle line =
     group
       [ segment lineStart lineEnd
           |> traced lineStyle
-      , circle 5
-          |> filled (rgb 220 0 0)
-          |> move lineStart
-      , circle 5
-          |> filled (rgb 220 0 0)
-          |> move lineEnd
       ]
 
 
@@ -126,14 +109,14 @@ solveRays rayStart =
 
 curtail : Line -> Maybe Line
 curtail line =
-  List.filterMap (intersect line) world
-    |> List.sortBy magnitude
+  world
+    |> List.filterMap (intersect line)
+    |> List.sortBy (.vector >> .length)
     |> List.head
 
 
 intersect : Line -> Line -> Maybe Line
 intersect r s =
-  -- TODO This should now collision detect, returning a foreshortened a.
   let
     ( r_px, r_py ) =
       toXY (start r)
@@ -141,21 +124,10 @@ intersect r s =
     ( s_px, s_py ) =
       toXY (start s)
 
-    pos (Line ( p, _ )) =
-      p
-
-    angle (Line ( _, Vector ( _, Angle a ) )) =
-      a
-
-    ra =
-      angle r
-
-    norms l =
-      let
-        a =
-          angle l
-      in
-        ( cos a, sin a )
+    norms line =
+      ( cos line.vector.angle
+      , sin line.vector.angle
+      )
 
     ( r_dx, r_dy ) =
       norms r
@@ -169,62 +141,84 @@ intersect r s =
 
     rm =
       ((s_px - r_px + (s_dx * sm)) / r_dx)
-
-    clamp length (Line ( p, Vector ( Length l2, a ) )) =
-      if length + 2 < 0 || l2 < length - 2 then
-        Nothing
-      else
-        Just (Line ( p, Vector ( Length length, a ) ))
   in
     if isNaN sm || isNaN rm then
       Nothing
-    else if clamp (floor sm) s == Nothing then
+    else if sm < 0 then
+      Nothing
+    else if s.vector.length < sm then
+      Nothing
+    else if rm < 0 then
       Nothing
     else
-      clamp (floor rm) r
+      Just (withLength rm r)
+
+
+withLength : Float -> Line -> Line
+withLength length line =
+  let
+    vector =
+      line.vector
+  in
+    { line | vector = { vector | length = length } }
+
+
+adjustAngle : Float -> Line -> Line
+adjustAngle delta line =
+  let
+    vector =
+      line.vector
+  in
+    { line | vector = { vector | angle = vector.angle + delta } }
 
 
 toRays : Position -> Line -> List Line
 toRays position line =
-  [ start line
-  , end line
-  ]
-    |> List.map (toLine position)
+  let
+    rayToStart =
+      lineBetween position (start line)
+
+    rayToEnd =
+      lineBetween position (end line)
+  in
+    [ adjustAngle (degrees 0.5) rayToStart
+    , adjustAngle (degrees -0.5) rayToStart
+    , adjustAngle (degrees 0.5) rayToEnd
+    , adjustAngle (degrees -0.5) rayToEnd
+    ]
 
 
-toLine : Position -> Position -> Line
-toLine from to =
-  Line
-    ( from
-    , vectorToPoint from to
-    )
+lineBetween : Position -> Position -> Line
+lineBetween from to =
+  { position = from
+  , vector = vectorBetween from to
+  }
 
 
-vectorToPoint : Position -> Position -> Vector
-vectorToPoint (Position ( X x1, Y y1 )) (Position ( X x2, Y y2 )) =
+vectorBetween : Position -> Position -> Vector
+vectorBetween p1 p2 =
   let
     dx =
-      x2 - x1
+      p2.x - p1.x
 
     dy =
-      y2 - y1
+      p2.y - p1.y
   in
-    Vector
-      ( Length (sqrt (dx * dx + dy * dy))
-      , Angle (atan2 (y2 - y1) (x2 - x1))
-      )
+    { length = sqrt (dx * dx + dy * dy)
+    , angle = atan2 (p2.y - p1.y) (p2.x - p1.x)
+    }
 
 
 world : World
 world =
-  [ Line ( Position ( X -300, Y -300 ), Vector ( Length 600, Angle <| degrees 0 ) )
-  , Line ( Position ( X 300, Y -300 ), Vector ( Length 600, Angle <| degrees 90 ) )
-  , Line ( Position ( X -300, Y -300 ), Vector ( Length 600, Angle <| degrees 90 ) )
-  , Line ( Position ( X 300, Y 300 ), Vector ( Length 600, Angle <| degrees 180 ) )
-  , Line ( Position ( X 100, Y 100 ), Vector ( Length 50, Angle <| degrees 315 ) )
-  , Line ( Position ( X -120, Y 100 ), Vector ( Length 50, Angle <| degrees 250 ) )
-  , Line ( Position ( X -200, Y 180 ), Vector ( Length 150, Angle <| degrees 250 ) )
-  , Line ( Position ( X 150, Y -100 ), Vector ( Length 120, Angle <| degrees 235 ) )
+  [ { position = { x = -300, y = -300 }, vector = { length = 600, angle = degrees 0 } }
+  , { position = { x = 300, y = -300 }, vector = { length = 600, angle = degrees 90 } }
+  , { position = { x = -300, y = -300 }, vector = { length = 600, angle = degrees 90 } }
+  , { position = { x = 300, y = 300 }, vector = { length = 600, angle = degrees 180 } }
+  , { position = { x = 100, y = 100 }, vector = { length = 50, angle = degrees 315 } }
+  , { position = { x = -120, y = 100 }, vector = { length = 50, angle = degrees 250 } }
+  , { position = { x = -200, y = 180 }, vector = { length = 150, angle = degrees 250 } }
+  , { position = { x = 150, y = -100 }, vector = { length = 120, angle = degrees 235 } }
   ]
 
 
