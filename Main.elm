@@ -97,15 +97,15 @@ vectorBetween p1 p2 =
     }
 
 
-solveRays : Position -> List Line
-solveRays rayStart =
+solveRays : World -> Position -> List Line
+solveRays world rayStart =
   world
     |> List.concatMap (toRays rayStart)
-    |> List.filterMap curtail
+    |> List.filterMap (curtail world)
 
 
-curtail : Line -> Maybe Line
-curtail line =
+curtail : World -> Line -> Maybe Line
+curtail world line =
   world
     |> List.filterMap (intersect line)
     |> List.sortBy (.vector >> .length)
@@ -175,8 +175,8 @@ toRays position line =
 ------------------------------------------------------------
 
 
-view : ( Int, Int ) -> ( Int, Int ) -> Element
-view ( w', h' ) ( x', y' ) =
+view : World -> ( Int, Int ) -> ( Int, Int ) -> Element
+view world ( w', h' ) ( x', y' ) =
   let
     ( w, h ) =
       ( toFloat w', toFloat h' )
@@ -194,7 +194,7 @@ view ( w', h' ) ( x', y' ) =
           [ group
               (let
                 solutions =
-                  solveRays rayPosition
+                  solveRays world rayPosition
                     |> List.sortBy (.vector >> .angle)
 
                 cycled =
@@ -254,8 +254,8 @@ drawTriangles color ( a, b ) =
 ------------------------------------------------------------
 
 
-world : World
-world =
+initialWorld : World
+initialWorld =
   [ { position = { x = -300, y = -300 }, vector = { length = 600, angle = degrees 0 } }
   , { position = { x = 300, y = -300 }, vector = { length = 600, angle = degrees 90 } }
   , { position = { x = -300, y = -300 }, vector = { length = 600, angle = degrees 90 } }
@@ -285,6 +285,6 @@ wallLineStyle =
 main : Signal Element
 main =
   Signal.map2
-    view
+    (view initialWorld)
     Window.dimensions
     Mouse.position
