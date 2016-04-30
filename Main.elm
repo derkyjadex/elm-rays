@@ -15,7 +15,7 @@ import Window
 ------------------------------------------------------------
 
 
-type alias World =
+type alias Walls =
   List Line
 
 
@@ -97,16 +97,16 @@ vectorBetween p1 p2 =
     }
 
 
-solveRays : World -> Position -> List Line
-solveRays world rayStart =
-  world
+solveRays : Walls -> Position -> List Line
+solveRays walls rayStart =
+  walls
     |> List.concatMap (toRays rayStart)
-    |> List.filterMap (curtail world)
+    |> List.filterMap (curtail walls)
 
 
-curtail : World -> Line -> Maybe Line
-curtail world line =
-  world
+curtail : Walls -> Line -> Maybe Line
+curtail walls line =
+  walls
     |> List.filterMap (intersect line)
     |> List.sortBy (.vector >> .length)
     |> List.head
@@ -175,8 +175,8 @@ toRays position line =
 ------------------------------------------------------------
 
 
-view : World -> ( Int, Int ) -> ( Int, Int ) -> Element
-view world ( w', h' ) ( x', y' ) =
+view : Walls -> ( Int, Int ) -> ( Int, Int ) -> Element
+view walls ( w', h' ) ( x', y' ) =
   let
     ( w, h ) =
       ( toFloat w', toFloat h' )
@@ -194,7 +194,7 @@ view world ( w', h' ) ( x', y' ) =
           [ group
               (let
                 solutions =
-                  solveRays world rayPosition
+                  solveRays walls rayPosition
                     |> List.sortBy (.vector >> .angle)
 
                 cycled =
@@ -206,7 +206,7 @@ view world ( w', h' ) ( x', y' ) =
           , circle 5
               |> filled Color.red
               |> move (toXY rayPosition)
-          , group (List.map (drawLine wallLineStyle) world)
+          , group (List.map (drawLine wallLineStyle) walls)
           ]
       , [ fromString "A raycasting hack in "
         , link "http://elm-lang.org/" (fromString "Elm")
@@ -254,8 +254,8 @@ drawTriangles color ( a, b ) =
 ------------------------------------------------------------
 
 
-initialWorld : World
-initialWorld =
+initialWalls : Walls
+initialWalls =
   [ { position = { x = -300, y = -300 }, vector = { length = 600, angle = degrees 0 } }
   , { position = { x = 300, y = -300 }, vector = { length = 600, angle = degrees 90 } }
   , { position = { x = -300, y = -300 }, vector = { length = 600, angle = degrees 90 } }
@@ -285,6 +285,6 @@ wallLineStyle =
 main : Signal Element
 main =
   Signal.map2
-    (view initialWorld)
+    (view initialWalls)
     Window.dimensions
     Mouse.position
